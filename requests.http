@@ -1,0 +1,91 @@
+# Example requests for the Fund Transfer API
+
+## Create a Transfer
+POST http://localhost:8000/api/v1/transfers
+Content-Type: application/json
+
+{
+  "sourceAccountNumber": "ACC1000000001",
+  "destinationAccountNumber": "ACC1000000002",
+  "amount": "250.00",
+  "description": "Payment for services rendered"
+}
+
+###
+
+## Get Transfer by Reference Number
+GET http://localhost:8000/api/v1/transfers/TXN20231201120000ABC123
+
+###
+
+## Get Account Transactions
+GET http://localhost:8000/api/v1/transfers/account/ACC1000000001?limit=20
+
+###
+
+## Get Account Details
+GET http://localhost:8000/api/v1/accounts/ACC1000000001
+
+###
+
+## Get Account Balance
+GET http://localhost:8000/api/v1/accounts/ACC1000000001/balance
+
+###
+
+## List All Active Accounts
+GET http://localhost:8000/api/v1/accounts
+
+###
+
+## Health Check
+GET http://localhost:8000/health
+
+###
+
+## Test: Transfer with Insufficient Funds
+POST http://localhost:8000/api/v1/transfers
+Content-Type: application/json
+
+{
+  "sourceAccountNumber": "ACC1000000001",
+  "destinationAccountNumber": "ACC1000000002",
+  "amount": "999999.00",
+  "description": "This should fail"
+}
+
+###
+
+## Test: Transfer with Invalid Account
+POST http://localhost:8000/api/v1/transfers
+Content-Type: application/json
+
+{
+  "sourceAccountNumber": "INVALID123",
+  "destinationAccountNumber": "ACC1000000002",
+  "amount": "100.00"
+}
+
+###
+
+## Test: Transfer with Same Source and Destination
+POST http://localhost:8000/api/v1/transfers
+Content-Type: application/json
+
+{
+  "sourceAccountNumber": "ACC1000000001",
+  "destinationAccountNumber": "ACC1000000001",
+  "amount": "100.00"
+}
+
+###
+
+## Test: Transfer with Negative Amount
+POST http://localhost:8000/api/v1/transfers
+Content-Type: application/json
+
+{
+  "sourceAccountNumber": "ACC1000000001",
+  "destinationAccountNumber": "ACC1000000002",
+  "amount": "-100.00"
+}
