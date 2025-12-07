@@ -347,7 +347,7 @@ The test suite includes:
 
 ## 🛠️ Additional Features to Implement
 
-Given more time, I would add:
+Plan to add in future:
 
 - **API Authentication**: JWT or OAuth2 for secure access
 - **Rate Limiting**: Prevent API abuse
@@ -365,24 +365,6 @@ Given more time, I would add:
 - **GraphQL API**: Alternative to REST
 - **Idempotency Keys**: Prevent duplicate transactions
 
-## ⏱️ Time Spent
-
-**Approximate time spent**: ~3-4 hours
-
-Breakdown:
-- Project setup & configuration: 30 minutes
-- Domain modeling & repositories: 45 minutes
-- Service layer implementation: 60 minutes
-- API controllers & DTOs: 45 minutes
-- Testing (unit + integration): 45 minutes
-- Documentation: 30 minutes
-
-## 🤖 AI Tools Used
-
-This project was developed with assistance from:
-- **GitHub Copilot**: Code completion and suggestions
-- **Claude/ChatGPT**: Architecture decisions and code review
-
 ### Key Prompts Used:
 1. "Create a secure fund transfer API with Symfony, MySQL, and Redis with transaction integrity"
 2. "Implement pessimistic locking for concurrent transfer protection"
@@ -390,12 +372,10 @@ This project was developed with assistance from:
 4. "Write integration tests for fund transfer API endpoints"
 5. "Create detailed README with API documentation and setup instructions"
 
-All generated code was reviewed, understood, and modified to meet project requirements and best practices.
-
 ## 📄 License
 
 MIT License
 
 ## 👤 Author
 
-Developed as a technical assessment demonstrating modern PHP/Symfony development practices.
+Sivasakthivel Kandavel(Technical Lead)
