@@ -1,0 +1,6 @@
+{
+  "sourceAccountNumber": "ACC1000000001",
+  "destinationAccountNumber": "ACC1000000002",
+  "amount": "-10.00",
+  "description": "Should fail - negative amount"
+}

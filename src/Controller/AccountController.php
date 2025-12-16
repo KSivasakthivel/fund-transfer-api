@@ -2,13 +2,13 @@
 
 namespace App\Controller;
 
-use App\DTO\AccountResponse;
-use App\Service\CacheService;
 use App\Repository\AccountRepository;
+use App\Service\CacheServiceInterface;
+use App\Service\Response\DtoMapper;
+use App\Service\Response\ResponseBuilder;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/v1/accounts', name: 'api_accounts_')]
@@ -16,7 +16,9 @@ class AccountController extends AbstractController
 {
     public function __construct(
         private AccountRepository $accountRepository,
-        private CacheService $cacheService,
+        private CacheServiceInterface $cacheService,
+        private ResponseBuilder $responseBuilder,
+        private DtoMapper $dtoMapper,
         private LoggerInterface $logger
     ) {
     }
@@ -28,24 +30,12 @@ class AccountController extends AbstractController
             $account = $this->cacheService->getAccount($accountNumber);
 
             if (!$account) {
-                return $this->json([
-                    'error' => 'Account not found',
-                ], Response::HTTP_NOT_FOUND);
+                return $this->responseBuilder->notFound('Account not found');
             }
 
-            $response = new AccountResponse(
-                $account->getAccountNumber(),
-                $account->getHolderName(),
-                $account->getBalance(),
-                $account->getCurrency(),
-                $account->getStatus(),
-                $account->getCreatedAt()->format('Y-m-d H:i:s')
-            );
+            $response = $this->dtoMapper->mapAccountToResponse($account);
 
-            return $this->json([
-                'success' => true,
-                'data' => $response->toArray(),
-            ]);
+            return $this->responseBuilder->success($response->toArray());
 
         } catch (\Exception $e) {
             $this->logger->error('Get account error', [
@@ -53,9 +43,7 @@ class AccountController extends AbstractController
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->json([
-                'error' => 'An unexpected error occurred',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->responseBuilder->serverError();
         }
     }
 
@@ -66,17 +54,12 @@ class AccountController extends AbstractController
             $balance = $this->cacheService->getAccountBalance($accountNumber);
 
             if ($balance === null) {
-                return $this->json([
-                    'error' => 'Account not found',
-                ], Response::HTTP_NOT_FOUND);
+                return $this->responseBuilder->notFound('Account not found');
             }
 
-            return $this->json([
-                'success' => true,
-                'data' => [
-                    'accountNumber' => $accountNumber,
-                    'balance' => $balance,
-                ],
+            return $this->responseBuilder->success([
+                'accountNumber' => $accountNumber,
+                'balance' => $balance,
             ]);
 
         } catch (\Exception $e) {
@@ -85,9 +68,7 @@ class AccountController extends AbstractController
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->json([
-                'error' => 'An unexpected error occurred',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->responseBuilder->serverError();
         }
     }
 
@@ -96,32 +77,16 @@ class AccountController extends AbstractController
     {
         try {
             $accounts = $this->accountRepository->findActiveAccounts();
+            $data = $this->dtoMapper->mapAccountsToArray($accounts);
 
-            $data = array_map(function ($account) {
-                return (new AccountResponse(
-                    $account->getAccountNumber(),
-                    $account->getHolderName(),
-                    $account->getBalance(),
-                    $account->getCurrency(),
-                    $account->getStatus(),
-                    $account->getCreatedAt()->format('Y-m-d H:i:s')
-                ))->toArray();
-            }, $accounts);
-
-            return $this->json([
-                'success' => true,
-                'data' => $data,
-                'count' => count($data),
-            ]);
+            return $this->responseBuilder->successWithCount($data);
 
         } catch (\Exception $e) {
             $this->logger->error('List accounts error', [
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->json([
-                'error' => 'An unexpected error occurred',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->responseBuilder->serverError();
         }
     }
 }

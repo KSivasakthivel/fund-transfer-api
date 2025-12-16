@@ -6,11 +6,14 @@ use App\Entity\Account;
 use App\Entity\Transaction;
 use App\Repository\AccountRepository;
 use App\Repository\TransactionRepository;
-use App\Service\CacheService;
 use App\Service\FundTransferService;
+use App\Service\Transfer\AccountLocker;
+use App\Service\Transfer\RetryStrategy;
+use App\Service\Transfer\TransferValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class FundTransferServiceTest extends TestCase
 {
@@ -18,7 +21,10 @@ class FundTransferServiceTest extends TestCase
     private EntityManagerInterface $entityManager;
     private AccountRepository $accountRepository;
     private TransactionRepository $transactionRepository;
-    private CacheService $cacheService;
+    private TransferValidator $validator;
+    private AccountLocker $accountLocker;
+    private RetryStrategy $retryStrategy;
+    private EventDispatcherInterface $eventDispatcher;
     private LoggerInterface $logger;
 
     protected function setUp(): void
@@ -26,14 +32,20 @@ class FundTransferServiceTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->accountRepository = $this->createMock(AccountRepository::class);
         $this->transactionRepository = $this->createMock(TransactionRepository::class);
-        $this->cacheService = $this->createMock(CacheService::class);
+        $this->validator = $this->createMock(TransferValidator::class);
+        $this->accountLocker = $this->createMock(AccountLocker::class);
+        $this->retryStrategy = $this->createMock(RetryStrategy::class);
+        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
         $this->service = new FundTransferService(
             $this->entityManager,
             $this->accountRepository,
             $this->transactionRepository,
-            $this->cacheService,
+            $this->validator,
+            $this->accountLocker,
+            $this->retryStrategy,
+            $this->eventDispatcher,
             $this->logger
         );
     }
@@ -43,6 +55,11 @@ class FundTransferServiceTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Source and destination accounts cannot be the same');
 
+        $this->validator
+            ->expects($this->once())
+            ->method('validateTransferRequest')
+            ->willThrowException(new \DomainException('Source and destination accounts cannot be the same'));
+
         $this->service->transfer('1234567890', '1234567890', '100.00');
     }
 
@@ -50,6 +67,11 @@ class FundTransferServiceTest extends TestCase
     {
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Transfer amount must be positive');
+
+        $this->validator
+            ->expects($this->once())
+            ->method('validateTransferRequest')
+            ->willThrowException(new \DomainException('Transfer amount must be positive'));
 
         $this->service->transfer('1234567890', '0987654321', '-100.00');
     }
@@ -59,6 +81,11 @@ class FundTransferServiceTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Transfer amount must be positive');
 
+        $this->validator
+            ->expects($this->once())
+            ->method('validateTransferRequest')
+            ->willThrowException(new \DomainException('Transfer amount must be positive'));
+
         $this->service->transfer('1234567890', '0987654321', '0.00');
     }
 
@@ -66,6 +93,11 @@ class FundTransferServiceTest extends TestCase
     {
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Transfer amount exceeds maximum limit');
+
+        $this->validator
+            ->expects($this->once())
+            ->method('validateTransferRequest')
+            ->willThrowException(new \DomainException('Transfer amount exceeds maximum limit'));
 
         $this->service->transfer('1234567890', '0987654321', '1000001.00');
     }

@@ -7,7 +7,7 @@ use App\Repository\AccountRepository;
 use Predis\Client as RedisClient;
 use Psr\Log\LoggerInterface;
 
-class CacheService
+class CacheService implements CacheServiceInterface
 {
     private const CACHE_TTL = 300; // 5 minutes
     private const ACCOUNT_PREFIX = 'account:';
@@ -115,7 +115,7 @@ class CacheService
     /**
      * Store account in cache
      */
-    public function cacheAccount(Account $account): void
+    public function setAccount(Account $account): void
     {
         try {
             $cacheKey = self::ACCOUNT_PREFIX . $account->getAccountNumber();
@@ -133,9 +133,9 @@ class CacheService
     }
 
     /**
-     * Clear all cache (useful for testing)
+     * Clear all account caches
      */
-    public function clearAll(): void
+    public function clearAllAccountCaches(): void
     {
         try {
             $this->redis->flushdb();

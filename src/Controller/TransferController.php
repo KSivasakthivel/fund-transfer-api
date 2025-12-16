@@ -3,13 +3,13 @@
 namespace App\Controller;
 
 use App\DTO\TransferRequest;
-use App\DTO\TransferResponse;
 use App\Service\FundTransferService;
+use App\Service\Response\DtoMapper;
+use App\Service\Response\ResponseBuilder;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -21,6 +21,8 @@ class TransferController extends AbstractController
         private FundTransferService $transferService,
         private SerializerInterface $serializer,
         private ValidatorInterface $validator,
+        private ResponseBuilder $responseBuilder,
+        private DtoMapper $dtoMapper,
         private LoggerInterface $logger
     ) {
     }
@@ -38,15 +40,7 @@ class TransferController extends AbstractController
             $errors = $this->validator->validate($transferRequest);
             
             if (count($errors) > 0) {
-                $errorMessages = [];
-                foreach ($errors as $error) {
-                    $errorMessages[$error->getPropertyPath()] = $error->getMessage();
-                }
-
-                return $this->json([
-                    'error' => 'Validation failed',
-                    'details' => $errorMessages,
-                ], Response::HTTP_BAD_REQUEST);
+                return $this->responseBuilder->validationError($errors);
             }
 
             $transaction = $this->transferService->transfer(
@@ -56,22 +50,9 @@ class TransferController extends AbstractController
                 $transferRequest->description
             );
 
-            $response = new TransferResponse(
-                $transaction->getReferenceNumber(),
-                $transaction->getStatus(),
-                $transaction->getSourceAccount()->getAccountNumber(),
-                $transaction->getDestinationAccount()->getAccountNumber(),
-                $transaction->getAmount(),
-                $transaction->getCurrency(),
-                $transaction->getDescription(),
-                $transaction->getCreatedAt()->format('Y-m-d H:i:s'),
-                $transaction->getCompletedAt()?->format('Y-m-d H:i:s')
-            );
+            $response = $this->dtoMapper->mapTransactionToResponse($transaction);
 
-            return $this->json([
-                'success' => true,
-                'data' => $response->toArray(),
-            ], Response::HTTP_CREATED);
+            return $this->responseBuilder->success($response->toArray(), 201);
 
         } catch (\DomainException $e) {
             $this->logger->warning('Transfer request failed', [
@@ -79,9 +60,7 @@ class TransferController extends AbstractController
                 'request' => $request->getContent(),
             ]);
 
-            return $this->json([
-                'error' => $e->getMessage(),
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->responseBuilder->unprocessableEntity($e->getMessage());
 
         } catch (\Exception $e) {
             $this->logger->error('Transfer request error', [
@@ -89,9 +68,7 @@ class TransferController extends AbstractController
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return $this->json([
-                'error' => 'An unexpected error occurred',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->responseBuilder->serverError();
         }
     }
 
@@ -102,27 +79,12 @@ class TransferController extends AbstractController
             $transaction = $this->transferService->getTransaction($referenceNumber);
 
             if (!$transaction) {
-                return $this->json([
-                    'error' => 'Transaction not found',
-                ], Response::HTTP_NOT_FOUND);
+                return $this->responseBuilder->notFound('Transaction not found');
             }
 
-            $response = new TransferResponse(
-                $transaction->getReferenceNumber(),
-                $transaction->getStatus(),
-                $transaction->getSourceAccount()->getAccountNumber(),
-                $transaction->getDestinationAccount()->getAccountNumber(),
-                $transaction->getAmount(),
-                $transaction->getCurrency(),
-                $transaction->getDescription(),
-                $transaction->getCreatedAt()->format('Y-m-d H:i:s'),
-                $transaction->getCompletedAt()?->format('Y-m-d H:i:s')
-            );
+            $response = $this->dtoMapper->mapTransactionToResponse($transaction);
 
-            return $this->json([
-                'success' => true,
-                'data' => $response->toArray(),
-            ]);
+            return $this->responseBuilder->success($response->toArray());
 
         } catch (\Exception $e) {
             $this->logger->error('Get transfer error', [
@@ -130,9 +92,7 @@ class TransferController extends AbstractController
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->json([
-                'error' => 'An unexpected error occurred',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->responseBuilder->serverError();
         }
     }
 
@@ -144,31 +104,12 @@ class TransferController extends AbstractController
             $limit = min(max($limit, 1), 100); // Between 1 and 100
 
             $transactions = $this->transferService->getAccountTransactions($accountNumber, $limit);
+            $data = $this->dtoMapper->mapTransactionsToArray($transactions);
 
-            $data = array_map(function ($transaction) {
-                return (new TransferResponse(
-                    $transaction->getReferenceNumber(),
-                    $transaction->getStatus(),
-                    $transaction->getSourceAccount()->getAccountNumber(),
-                    $transaction->getDestinationAccount()->getAccountNumber(),
-                    $transaction->getAmount(),
-                    $transaction->getCurrency(),
-                    $transaction->getDescription(),
-                    $transaction->getCreatedAt()->format('Y-m-d H:i:s'),
-                    $transaction->getCompletedAt()?->format('Y-m-d H:i:s')
-                ))->toArray();
-            }, $transactions);
-
-            return $this->json([
-                'success' => true,
-                'data' => $data,
-                'count' => count($data),
-            ]);
+            return $this->responseBuilder->successWithCount($data);
 
         } catch (\DomainException $e) {
-            return $this->json([
-                'error' => $e->getMessage(),
-            ], Response::HTTP_NOT_FOUND);
+            return $this->responseBuilder->notFound($e->getMessage());
 
         } catch (\Exception $e) {
             $this->logger->error('Get account transfers error', [
@@ -176,9 +117,7 @@ class TransferController extends AbstractController
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->json([
-                'error' => 'An unexpected error occurred',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->responseBuilder->serverError();
         }
     }
 }

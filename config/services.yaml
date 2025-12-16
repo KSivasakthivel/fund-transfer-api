@@ -20,3 +20,35 @@ services:
     Predis\Client:
         arguments:
             - '%env(REDIS_URL)%'
+
+    # Interface bindings for dependency inversion
+    App\Service\Transfer\TransferValidatorInterface:
+        class: App\Service\Transfer\TransferValidator
+    
+    App\Service\Transfer\AccountLockerInterface:
+        class: App\Service\Transfer\AccountLocker
+    
+    App\Service\Transfer\RetryStrategyInterface:
+        class: App\Service\Transfer\RetryStrategy
+    
+    App\Service\CacheServiceInterface:
+        class: App\Service\CacheService
+    
+    # Observability services
+    App\Service\Observability\CorrelationIdGeneratorInterface:
+        class: App\Service\Observability\CorrelationIdGenerator
+    
+    App\Service\Observability\MetricsCollectorInterface:
+        class: App\Service\Observability\InMemoryMetricsCollector
+    
+    # Health checks
+    App\Service\Health\HealthCheckAggregator:
+        calls:
+            - addHealthCheck: ['@App\Service\Health\DatabaseHealthCheck']
+            - addHealthCheck: ['@App\Service\Health\RedisHealthCheck']
+    
+    # Event listeners
+    App\EventListener\TransferCompletedListener:
+        tags:
+            - { name: kernel.event_subscriber }
+

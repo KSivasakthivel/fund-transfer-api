@@ -3,18 +3,18 @@ version: '3.8'
 services:
   db:
     image: mysql:8.0
-    container_name: finserve_db
+    container_name: finservice_db
     environment:
       MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: finserve
-      MYSQL_USER: finserve
-      MYSQL_PASSWORD: finserve_password
+      MYSQL_DATABASE: finservice
+      MYSQL_USER: finservice
+      MYSQL_PASSWORD: finservice_password
     ports:
-      - "3306:3306"
+      - "3308:3308"
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - finserve_network
+      - finservice_network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 5s
@@ -22,11 +22,11 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: finserve_redis
+    container_name: finservice_redis
     ports:
-      - "6379:6379"
+      - "6378:6378"
     networks:
-      - finserve_network
+      - finservice_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -37,28 +37,28 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: finserve_php
+    container_name: finservice_php
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - finserve_network
+      - finservice_network
     environment:
       APP_ENV: dev
       APP_SECRET: changeThisSecretInProduction1234567890
-      DATABASE_URL: mysql://finserve:finserve_password@db:3306/finserve?serverVersion=8.0&charset=utf8mb4
+      DATABASE_URL: mysql://finservice:finservice_password@db:3306/finservice?serverVersion=8.0&charset=utf8mb4
       REDIS_URL: redis://redis:6379
 
 volumes:
   db_data:
 
 networks:
-  finserve_network:
+  finservice_network:
     driver: bridge
